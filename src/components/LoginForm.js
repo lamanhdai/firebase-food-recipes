@@ -34,6 +34,14 @@ function LoginForm({ existingUser }) {
     }
   }
 
+  async function handleLoginWithGoogle() {
+    try {
+      await FirebaseAuthService.loginWithGoogle();
+    } catch(err) {
+      alert(err.message)
+    }
+  }
+
   return (
     <div className="login-form-container">
       {
@@ -64,12 +72,12 @@ function LoginForm({ existingUser }) {
             <div className='button-box'>
               <button className='primary-button'>Login</button>
               <button type='button' className='primary-button' onClick={handleSendPasswordResetEmail}>Reset Password</button>
+              <button type='button' className='primary-button' onClick={handleLoginWithGoogle}>Logn with Google</button>
             </div>
           </form>
         )
       }
     </div>
-    // <h1>Login Form</h1>
   )
 }
 
