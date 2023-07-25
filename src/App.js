@@ -12,7 +12,8 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [orderBy, setOrderBy] = useState('publishDateDesc');
-  const fetchRecipes = useCallback(async () => {
+  const [recipesPerPage, setRecipesPerPage] = useState(3)
+  const fetchRecipes = useCallback(async (cursorId = '') => {
     const queries = [];
     if(categoryFilter) {
       queries.push({
@@ -51,7 +52,9 @@ function App() {
         collectionName: 'recipes',
         queries,
         orderByField: orderByField,
-        orderByDirection: orderByDirection
+        orderByDirection: orderByDirection,
+        perPage: recipesPerPage,
+        cursorId: cursorId
       });
 
       const newRecipes = response.docs.map(recipeDoc => {
@@ -60,13 +63,22 @@ function App() {
         data.publishDate = new Date(data.publishDate.seconds * 1000);
         return { ...data, id }
       })
-      fetchedRecipes = [...newRecipes]
+
+      if(cursorId) {
+        fetchedRecipes = [...recipes, ...newRecipes]
+      } else {
+        fetchedRecipes = [...newRecipes];
+      }
     } catch(err) {
       console.log(err.message)
       throw err;
     }
     return fetchedRecipes;
-  }, [orderBy, categoryFilter, user])
+  }, [orderBy, categoryFilter, user, recipes, recipesPerPage])
+
+  useEffect(() => {
+    FirebaseAuthService.subscribeToAuthChanges(setUser);
+  }, [])
 
   useEffect(() => {
     setIsLoading(true);
@@ -81,11 +93,23 @@ function App() {
       .finally(() => {
         setIsLoading(false);
       })
-  }, [user, orderBy, fetchRecipes])
+  }, [user, orderBy, fetchRecipes, recipesPerPage])
 
+  function handleRecipePerPageChange(event) {
+    const recipesPerPage = event.target.value;
+    setRecipes([]);
+    setRecipesPerPage(recipesPerPage);
+  }
+
+  function handleLoadMoreRecipesClick() {
+    const lastRecipe = recipes[recipes.length - 1];
+    const cursorId = lastRecipe.id;
+    handleFetchRecipes(cursorId);
+ 
+  }
   
 
-  async function handleFetchRecipes() {
+  async function handleFetchRecipes(cursorId = '') {
     try {
       const recipes = await fetchRecipes();
       setRecipes(recipes);
@@ -95,7 +119,6 @@ function App() {
     }
   }
 
-  FirebaseAuthService.subscribeToAuthChanges(setUser);
   async function handleAddRecipe(newRecipe) {
     try {
       const respose = await FirebaseFirestoreService.createDocument('recipes', newRecipe);
@@ -175,9 +198,9 @@ function App() {
     }
   }
 
-  const handleChangeCatergoryFilter = useCallback((e) => {
+  const handleChangeCatergoryFilter = (e) => {
     setCategoryFilter(e.target.value)
-  }, [categoryFilter])
+  }
 
   const FilterCategoryComponent = memo((categoryFilterProps) => (
     <label className="recipe-label input-label">
@@ -284,6 +307,28 @@ function App() {
           </div>
         </div>
       </div>
+      {
+        isLoading || (recipes && recipes.length > 0) ? 
+        (
+          <>
+            <label className='input-label'>
+              Recipes Per Page:
+              <select
+                value={recipesPerPage}
+                onChange={handleRecipePerPageChange}
+                className='select'
+              >
+                <option value="3">3</option>
+                <option value="6">6</option>
+                <option value="9">9</option>
+              </select>
+            </label>
+            <div className='pagination'>
+              <button type="button" className='primary-button' onClick={handleLoadMoreRecipesClick}>Load More Recipes</button>
+            </div>
+          </>
+        ) : null
+      }
       {
         user ? <AddEditRecipeForm
           existingRecipe={currentRecipe}

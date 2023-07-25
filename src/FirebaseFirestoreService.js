@@ -7,7 +7,8 @@ import {
   getDocs,
   where,
   query,
-  orderBy
+  orderBy,
+  limit
 } from "firebase/firestore"; 
 import firebase from './FirebaseConfig';
 
@@ -20,7 +21,11 @@ const createDocument = (collectionName, document) => {
   });
 }
 
-const readDocuments = ({collectionName, queries, orderByField, orderByDirection}) => {
+const readDocument = (collection, id) => {
+  return db.collection(collection).doc(id).get();
+}
+
+const readDocuments = async ({collectionName, queries, orderByField, orderByDirection, perPage, cursorId}) => {
   let collectionRef = collection(db, collectionName);
   if(queries && queries.length) {
     for(const queryItem of queries) {
@@ -41,6 +46,15 @@ const readDocuments = ({collectionName, queries, orderByField, orderByDirection}
         orderByDirection
       )
     )
+  }
+
+  if(perPage) {
+    collectionRef = query(collectionRef, limit(perPage));
+  }
+
+  if(cursorId) {
+    const document = await readDocument(collectionName, cursorId);
+    collectionRef = collectionRef.startAfter(document);
   }
   return getDocs(collectionRef)
 }
